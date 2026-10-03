@@ -21,7 +21,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: System :: Hardware :: Hardware Drivers",
 ]
-dependencies = ["mcp[cli]"]
+dependencies = ["mcp[cli]>=1.30,<2"]
 
 [project.optional-dependencies]
 plot = ["matplotlib"]
@@ -36,6 +36,10 @@ Issues = "https://github.com/DVSProductions/rigol-mcp/issues"
 
 [tool.setuptools]
 py-modules = ["rigol_mcp"]
+packages = ["rigol_reference"]
+
+[tool.setuptools.package-data]
+rigol_reference = ["manifest.json"]
 
 [tool.ruff]
 line-length = 100

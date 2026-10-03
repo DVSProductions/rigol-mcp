@@ -5,10 +5,17 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 [![MCP](https://img.shields.io/badge/MCP-server-orange.svg)](https://modelcontextprotocol.io)
 
-Drive a Rigol DS1054Z (or any DS1000Z / MSO1000Z series scope) from Claude Code
+Drive a Rigol DS1054Z (or any DS1000Z / MSO1000Z series scope) from Codex or Claude Code
 over Ethernet — no UltraSigma, no NI-VISA, no drivers. The scope is an LXI
 instrument that accepts plain SCPI on a raw TCP socket (port **5555**); this
 server wraps that as MCP tools.
+
+> **Required extra step for manual lookup: download the guide once.** The PDF and
+> Markdown are **not included** in this repository or package, and installing the
+> MCP does not download them. Before using `search_manual` or `get_manual`, install
+> Poppler's `pdftotext` and run `python scripts/cache_manual.py` from the checkout
+> with internet access. The script downloads the PDF and generates the local
+> Markdown cache; subsequent lookups work offline.
 
 ## Tools
 
@@ -25,13 +32,88 @@ server wraps that as MCP tools.
 | `set_trigger` | edge source / level / slope / sweep |
 | `set_acquire` | memory depth |
 | `scpi` | raw SCPI escape hatch for anything else |
+| `search_manual` | search the cached programming guide by command or keywords, offline |
+| `get_manual` | read the guide index or up to five complete PDF pages, offline |
+
+## Required one-time manual download
+
+**Manual lookup will not work on a fresh installation until you complete this
+download step.** The PDF and full Markdown extraction are excluded from Git and
+package distributions. The vendor's copyright notice requires prior written
+approval from RIGOL for copying or rearranging the manual; redistribution
+permission has not been established. See the
+[notice on physical PDF page 3](https://www.batronix.com/pdf/Rigol/ProgrammingGuide/MSO1000Z_DS1000Z_ProgrammingGuide_EN.pdf#page=3).
+
+The server can cache the December 2015
+[RIGOL MSO1000Z/DS1000Z programming guide](https://www.batronix.com/pdf/Rigol/ProgrammingGuide/MSO1000Z_DS1000Z_ProgrammingGuide_EN.pdf)
+locally as the original PDF and a page-addressable Markdown extraction.
+[Source metadata](rigol_reference/manifest.json) pins its edition and PDF checksum.
+All 260 physical PDF pages are retained, including the vendor notices. The manual covers
+software version `00.04.03.SP2`; command availability depends on the scope's
+model, options and firmware.
+
+After cloning and installing the MCP, install Poppler's `pdftotext`
+(`brew install poppler` on macOS or `sudo apt-get install poppler-utils` on
+Debian/Ubuntu). Then, **while online, run this required command once from the checkout**:
+
+```sh
+python scripts/cache_manual.py
+```
+
+The script verifies the pinned PDF checksum and converts it to Markdown. A new
+checkout creates `programming-guide.pdf`, `programming-guide.md` and `manifest.json`
+in the private cache at `~/.cache/rigol-mcp/reference`; existing
+editable installs with a cache in `rigol_reference/` keep using it. Repeat runs
+reuse the cache without downloading or converting again. `--refresh` explicitly
+downloads the same edition again. Set `RIGOL_MANUAL_DIR` for both setup and the
+MCP server to use a custom directory. The PDF and Markdown are not committed or
+redistributed in public builds; only the code and source metadata are published.
+
+If an agent calls the documentation tools before setup, the MCP returns an error
+with this download command and its prerequisites. The agent should complete the
+setup or clearly explain that it is required, then retry the lookup. The tools
+and server startup never download the manual automatically.
+
+Before using raw `scpi`, call `search_manual` with command syntax or keywords,
+then `get_manual` with a returned `pdf_page`. For example:
+
+```text
+search_manual(query=":WAV:PRE?")
+get_manual(page=242)
+search_manual(query="MATH FFT", limit=5)
+get_manual(page=111, page_count=3)
+```
+
+Search recognizes SCPI short and long spellings, numbered command nodes such as
+`:CHAN4`, and case-insensitive keywords. All whitespace-separated search terms
+must occur on the same page. Results prioritize command definitions over the
+table of contents and include a small snippet, physical and printed page numbers,
+and links to the source PDF. Read complete pages for parameter ranges and examples;
+read adjacent pages when a command continues. `get_manual()` returns a concise
+index. Page reads use physical PDF page numbers (1-260), which differ from printed
+chapter numbers such as `2-226`.
+
+Clients that support MCP resources can also read `rigol://manual/index` and the
+template `rigol://manual/page/{page}`. Documentation tools work without a scope
+connection or internet access. The server instructions and `scpi` description
+direct agents to this local reference first. Both editable installs and built
+packages read the private cache independently of the client's working directory.
+
+Markdown retains the extracted text and column spacing inside text blocks;
+graphical diagrams and exact visual formatting remain in the original PDF.
+The manual is RIGOL's copyrighted documentation and is separate from the server's
+MIT-licensed code. No startup or tool call downloads the manual. To regenerate
+the Markdown after explicitly replacing the cached PDF, install Poppler's
+`pdftotext` and run `python scripts/convert_manual.py --directory <cache-directory>`.
+Conversion requires no
+additional Python packages, and Poppler is not required at runtime.
 
 ## Setup
 
 Clone the repo, then either install the dependencies directly:
 
 ```sh
-pip install "mcp[cli]"      # required
+pip install "mcp[cli]>=1.30,<2"  # required; tested SDK 1.x API
 pip install matplotlib      # optional, only for plot_waveform
 ```
 
@@ -88,6 +170,7 @@ Then `claude mcp list` to confirm it connects, and ask Claude things like
 | `RIGOL_PORT` | `5555` | raw SCPI socket port |
 | `RIGOL_TIMEOUT` | `10` | socket timeout (seconds) |
 | `RIGOL_OUT_DIR` | `./captures` | where `get_waveform` writes CSVs |
+| `RIGOL_MANUAL_DIR` | local editable cache, otherwise `~/.cache/rigol-mcp/reference` | optional private manual cache directory |
 
 ## Notes / gotchas
 
@@ -126,3 +209,6 @@ Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). CI lints with
 ## License
 
 [MIT](LICENSE) © Valentino Saitz
+
+The cached programming guide and its text extraction retain RIGOL's original
+copyright and notices; they are not licensed under MIT.
