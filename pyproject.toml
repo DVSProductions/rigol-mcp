@@ -21,10 +21,12 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: System :: Hardware :: Hardware Drivers",
 ]
-dependencies = ["mcp[cli]"]
+# mcp 2.x renamed FastMCP to MCPServer; this server is written against the 1.x API.
+dependencies = ["mcp[cli]>=1.26,<2"]
 
 [project.optional-dependencies]
 plot = ["matplotlib"]
+test = ["pytest"]
 
 [project.scripts]
 rigol-mcp = "rigol_mcp:main"
@@ -43,3 +45,7 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
